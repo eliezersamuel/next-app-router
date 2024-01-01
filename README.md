@@ -1,36 +1,183 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# NextJS com app-router
 
-## Getting Started
+## Server-components vs Client-components
 
-First, run the development server:
+Tudo é **server-component** (o server rodando nodeJS/nextJS parsea os dados e renderiza os arquivos .html, .css, .js, etc. para que seja enviado ao client), a menos que coloque **'use client'** para usar o **client-component** (renderização por parte do cliente).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+[Quando usar Server-component e quando usar Client-component](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns).
+
+![](./public/images/server-or-client-component.png)
+
+Um server component pode ter um client-component child mas o contrário não. A não ser que passe como props/children.
+
+```javascript
+/*
+ServerComponent.tsx
+*/
+export default async function ServerComponent(){
+    const cars = await fetch('localhost:3000').then(response => response.json());
+
+    return
+    <>
+        {
+            React.Children.toArray(cars.map((car) => <li>{car}</li>))
+        }
+    </>;
+
+}
+
+/*
+ClientComponent.tsx
+*/
+import { renderToString } from "react-dom/server";
+
+'use client'
+export default ClientComponent({cars, children}:
+{cars?: React.ReactNode, children?: React.ReactNode}){
+    cars && console.log(renderToString(cars));
+    return (
+        <>
+            {cars && <cars/>}
+            {children && <children/>}
+        </>
+    );
+}
+
+/*
+ServerComponentFather.tsx
+*/
+export default function ServerComponentFather(){
+    return (
+		<>
+			<ClientComponent cars={ServerComponent}/>
+			<ClientComponent>
+				<ServerComponent/>
+			</ClientComponent>
+		</>
+    );
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## File System
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+[Routing Fundamentals](https://nextjs.org/docs/app/building-your-application/routing).
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+![](./public/images/routing.png)
 
-## Learn More
+-   **Layout:**
+    O componente/página que envolve as páginas. (semelhante ao \_app, \_document)
 
-To learn more about Next.js, take a look at the following resources:
+```xml
+<Layout>
+    <Page/>
+</Layout>
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Obs. Os layout são montados uma única vez.**
+> Isto quer dizer que um estado (**useState** que estiver sendo usado em um layout.tsx -> 'use client') é compartilhado na mudança de rota em que um layout esteja sendo compartilhado.
+> **Obs. No caso o RootLayout nunca é desmontado**
+> Ou seja, se tiver um estado lá ele vai ser repassado até acontecer um refresh na página.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```xml
+<Layout>
+	<LoginPage />
+	<SignupPage />
+</Layout>
+```
 
-## Deploy on Vercel
+```javascript
+"use client";
+export default function Layout({ children }: { children: React.ReactNode }) {
+	const [contador, setContador] = useState(0);
+	return (
+		<div>
+			{/*
+		Nesse caso esse botão irá ser mostrado e compartilhar o valor do estado tanto na rota de login, quanto de signup
+		*/}
+			<button onClick={setContador((prev) => prev + 1)}>
+				Contador: {contador}
+			</button>
+			{children}
+		</div>
+	);
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+-   **Page:**
+    É o arquivo de página(rota de página a ser mostrada).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+-   **Loading:**
+    É o arquivo de página de Loading. Página que irá aparecer enquanto a page.tsx (server-component) está realizando suas chamadas e sendo renderizada.
+    Enquanto a page.tsx está fazendo o fetch e logo após parseando e renderizando a mesma, é exibido a loading.tsx que está no mesmo nível.
+
+-   **Template:**
+    É igual ao **Layout** só que ele é montado toda vez que é navegado.
+
+## Route Groups
+
+[Route Groups - agrupar rotas para não impactar na URL](https://nextjs.org/docs/app/building-your-application/routing/route-groups).
+
+![](./public/images/route-groups.png)
+
+## Dynamic Routes
+
+[Dynamic Routes - aceita algum parametro na rota (/:id)](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes).
+
+```javascript
+export default function Page({ params }: { params: { slug: string } }) {
+	return <div>My Post: {params.slug}</div>;
+}
+```
+
+![](./public/images/dynamic-routes.png)
+
+**Generating Static Params**
+The generateStaticParams function can be used in combination with dynamic route segments to statically generate routes at build time instead of on-demand at request time.
+
+```javascript
+export async function generateStaticParams() {
+	const posts = await fetch("https://.../posts").then((res) => res.json());
+
+	return posts.map((post) => ({
+		slug: post.slug,
+	}));
+}
+```
+
+**Catch-all Segments**
+
+> [...folderName].
+
+**Optional Catch-all Segments**
+
+> \[[...folderName]].
+
+![](./public/images/dynamic-routes-optional-catch.png)
+
+## Metadatas
+
+Como modificar as metadatas tag(title, keywords, description):
+[Metadata Object and generateMetadata Options](https://nextjs.org/docs/app/api-reference/functions/generate-metadata).
+
+```javascript
+import { Metadata } from "next";
+
+type Props = {
+  params: { marca: string }
+  searchParams: { [key: string]: string | string[] | undefined }
+}
+
+// either Static metadata
+export const metadata: Metadata = {
+	title: "...",
+};
+
+// or Dynamic metadata
+export async function generateMetadata({ params, searchParams }: Props) {
+	return {
+		title: `${params.marca} | title`,
+	};
+}
+```
+
+É somente exportar essa constante ou essa função de geração de metadata de dentro de layout ou pages.
