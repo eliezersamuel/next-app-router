@@ -113,6 +113,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 -   **Template:**
     É igual ao **Layout** só que ele é montado toda vez que é navegado.
 
+-   **Route:**
+    É utilizado para criar um endpoint de requisições REST.
+    [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers#supported-http-methods).
+
+    > **Não pode ter um arquivo route.js|ts e um page.tsx no mesmo nível.**
+    > _Each route.js or page.js file takes over all HTTP verbs for that route._
+
+    ```typescript
+    export async function POST() {
+    	const res = await fetch("https://data.mongodb-api.com/...", {
+    		method: "POST",
+    		headers: {
+    			"Content-Type": "application/json",
+    			"API-Key": process.env.DATA_API_KEY!,
+    		},
+    		body: JSON.stringify({ time: new Date().toISOString() }),
+    	});
+    	const data = await res.json();
+    	return Response.json(data);
+    }
+    /*-----------------------------------------------*/
+    import { cookies } from "next/headers";
+
+    export async function GET(request: Request) {
+    	const cookieStore = cookies();
+    	const token = cookieStore.get("token");
+
+    	return new Response("Hello, Next.js!", {
+    		status: 200,
+    		headers: { "Set-Cookie": `token=${token.value}` },
+    	});
+    }
+    /*--------------------------------------------------*/
+    import { headers } from "next/headers";
+
+    export async function GET(request: Request) {
+    	const headersList = headers();
+    	const referer = headersList.get("referer");
+
+    	return new Response("Hello, Next.js!", {
+    		status: 200,
+    		headers: { referer: referer },
+    	});
+    }
+    ```
+
 ## Route Groups
 
 [Route Groups - agrupar rotas para não impactar na URL](https://nextjs.org/docs/app/building-your-application/routing/route-groups).
